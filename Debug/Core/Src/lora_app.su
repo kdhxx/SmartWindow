@@ -1,0 +1,7 @@
+../Core/Src/lora_app.c:31:6:OnTxDone	8	static
+../Core/Src/lora_app.c:39:6:OnRxDone	56	static
+../Core/Src/lora_app.c:58:6:OnTxTimeout	8	static
+../Core/Src/lora_app.c:59:6:OnRxTimeout	8	static
+../Core/Src/lora_app.c:60:6:OnRxError	8	static
+../Core/Src/lora_app.c:63:6:LoRa_Init_User	56	static
+../Core/Src/lora_app.c:92:6:LoRa_Send_SensorData	40	static
