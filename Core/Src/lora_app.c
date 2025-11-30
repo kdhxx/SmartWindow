@@ -113,7 +113,7 @@ void LoRa_Send_SensorData(int t_int, int h_int, int d_int, int rain, int light, 
     if(State == LORA_IDLE) {
 
         memset((void *)(Buffer + 1), 0, BUFFER_SIZE -1);
-        sprintf((char*)Buffer + 1, "T:%d H:%d D:%d R:%d L:%d WDIR:%d BDIR:%d",
+        sprintf((char*)Buffer + 1, "T:%d H:%d D:%d R:%d L:%d WDIR:%d BDIR:%d\r\n",
                 t_int,
                 h_int,
                 d_int,
@@ -123,12 +123,12 @@ void LoRa_Send_SensorData(int t_int, int h_int, int d_int, int rain, int light, 
 				b);
 
         printf("> [LoRa] Sending: %s\r\n", (char*)(Buffer+1));
-    	printf("ID : %d\n", Buffer[0]);
     	Radio.Send(Buffer, BUFFER_SIZE);
         State = LORA_TX;
     }
     else {
         // 전송 중이거나 수신 대기 중일 때는 무시 (충돌 방지)
         printf("[LoRa] Busy! State: %d\r\n", State);
+        State = LORA_IDLE;
     }
 }

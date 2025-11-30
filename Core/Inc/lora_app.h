@@ -19,7 +19,7 @@
 #define LORA_SYMBOL_TIMEOUT                         0         // Symbols
 #define LORA_FIX_LENGTH_PAYLOAD_ON                  false
 #define LORA_IQ_INVERSION_ON                        false
-#define RX_TIMEOUT_VALUE                            3000
+#define RX_TIMEOUT_VALUE                            10000
 #define BUFFER_SIZE                                 64		// Define the payload size here
 
 #define Rx_ID			77		// 공유 아이디

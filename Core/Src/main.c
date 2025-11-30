@@ -23,25 +23,22 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-// ====================================================
-// [핀 이름 정의] 하드웨어 연결에 따른 이름표
-// ====================================================
 
-// 1. 창문 모터 (Window Motor)
+// 1. 창문 모터
 #define WINDOW_ACTION_PIN       GPIO_PIN_2   // PB2
 #define WINDOW_ACTION_GPIO_Port GPIOB
 
 #define WINDOW_DIR_PIN          GPIO_PIN_15  // PB15
 #define WINDOW_DIR_GPIO_Port    GPIOB
 
-// 2. 블라인드 모터 (Blind Motor)
+// 2. 블라인드 모터
 #define BLIND_ACTION_PIN        GPIO_PIN_14  // PB14
 #define BLIND_ACTION_GPIO_Port  GPIOB
 
 #define BLIND_DIR_PIN           GPIO_PIN_13  // PB13
 #define BLIND_DIR_GPIO_Port     GPIOB
 
-// 3. 센서 및 기타 핀 (기존 유지)
+// 3. 센서 및 기타 핀
 #define RAIN_SENSOR_PIN         GPIO_PIN_10 // PC10
 #define RAIN_SENSOR_GPIO_Port   GPIOC
 
@@ -54,15 +51,14 @@
 // 3. 로직 설정
 #define TEMP_HOT_TO_OPEN    28
 #define TEMP_COLD_TO_CLOSE  22
-#define HUMI_TO_OPEN        60
-#define HUMI_TO_CLOSE       40
+#define HUMI_TO_OPEN        40
+#define HUMI_TO_CLOSE       25
 #define LIGHT_THRESHOLD     4000
-#define DUST_BAD_LEVEL      80
-#define LIGHT_BRIGHT_TH 3000
+#define DUST_BAD_LEVEL      40
+#define LIGHT_BRIGHT_TH 4000
 #define LIGHT_DARK_TH   1000
 
 #define SENSOR_CHECK_INTERVAL 3000
-#define MAX_OPEN_TIME 5000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -87,12 +83,8 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 int auto_mode = 0;
 
-int win_moving = 0;
-int blind_moving = 0;
 int win_dir = 1;
 int blind_dir = 0;
-
-volatile uint8_t g_rain_flag = 0;
 
 // --- IR 리모컨 변수 ---
 typedef enum {
@@ -112,22 +104,10 @@ volatile uint32_t dust_pulse_width = 0; // 펄스 길이 (Low 구간)
 volatile uint8_t  dust_ready_flag = 0;  // 계산 완료 깃발
 
 // --- 센서 데이터 변수 ---
-/*uint8_t Rh_byte1, Rh_byte2, Temp_byte1, Temp_byte2, SUM;
-float Temperature = 0.0f;
-float Humidity = 0.0f;*/
 int Val_Temp = 0;
 int Val_Humi = 0;
 int Val_Dust = 0;
 int light_value = 0;
-
-// 현재 창문 위치 (0: 닫힘 ~ 5000: 완전 열림)
-// [주의] 보드를 처음 켤 때는 창문을 꽉 닫아놓고 켜야 합니다! (0에서 시작하니까)
-int32_t g_current_pos = 0;
-
-// 수동 조작 시작 시간 기억용
-uint32_t g_manual_start_tick = 0;
-
-int g_dir = 0; // 0: 정지, 1: 열림(Open) 방향, -1: 닫힘(Close) 방향
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -240,79 +220,73 @@ int main(void)
     /* 2. IR 리모컨 처리 */
     if (ir_command != 0)
     {
-        printf("[IR] Command: 0x%02X\n", ir_command);
+        printf("[IR] Command: 0x%02X\r\n", ir_command);
         switch (ir_command)
         {
             case 0x0C: //1
             	if(auto_mode == 1)
             	{
-            		printf("Ignored: Currently Auto Mode\n");
+            		printf("Ignored: Currently Auto Mode\r\n");
             		break;
             	}
             	Window_Action_Open();
-            	win_moving = 1;
-                printf("Open Window\n");
+                printf("Open Window\r\n");
                 break;
             case 0x18: //2
             	if(auto_mode == 1)
             	{
-            		printf("Ignored: Currently Auto Mode\n");
+            		printf("Ignored: Currently Auto Mode\r\n");
             		break;
             	}
             	Window_Action_Stop();
-            	win_moving = 0;
-                printf("Stop Window\n");
+                printf("Stop Window\r\n");
                 break;
             case 0x5E: //3
             	if(auto_mode == 1)
             	{
-            		printf("Ignored: Currently Auto Mode\n");
+            		printf("Ignored: Currently Auto Mode\r\n");
             		break;
             	}
             	Window_Action_Close();
-            	win_moving = 1;
-            	printf("Close Window\n");
+            	printf("Close Window\r\n");
             	break;
             case 0x08: //4
             	if(auto_mode == 1)
             	{
-            		printf("Ignored: Currently Auto Mode\n");
+            		printf("Ignored: Currently Auto Mode\r\n");
             		break;
             	}
             	Blind_Action_Up();
-            	blind_moving = 1;
-            	printf("Up Blind\n");
+            	printf("Up Blind\r\n");
             	break;
             case 0x1C: //5
             	if(auto_mode == 1)
             	{
-            		printf("Ignored: Currently Auto Mode\n");
+            		printf("Ignored: Currently Auto Mode\r\n");
             		break;
             	}
             	Blind_Action_Stop();
-            	blind_moving = 0;
-            	printf("Stop Blind\n");
+            	printf("Stop Blind\r\n");
             	break;
             case 0x5A: //6
             	if(auto_mode == 1)
             	{
-            		printf("Ignored: Currently Auto Mode\n");
+            		printf("Ignored: Currently Auto Mode\r\n");
             		break;
             	}
             	Blind_Action_Down();
-            	blind_moving = 1;
-            	printf("Down Blind\n");
+            	printf("Down Blind\r\n");
             	break;
             case 0x42: //7
             	auto_mode = 0;
-            	printf(">> Auto Mode OFF\n");
+            	printf(">> Auto Mode OFF\r\n");
             	break;
             case 0x52: //8
             	auto_mode = 1;
-            	printf(">> Auto Mode ON\n");
+            	printf(">> Auto Mode ON\r\n");
             	break;
             default:
-                printf("Unknown Command\n");
+                printf("Unknown Command\r\n");
                 break;
         }
         ir_command = 0;
@@ -860,7 +834,6 @@ static void MX_GPIO_Init(void)
 
 // --- 모터 제어 함수 ---
 void Window_Action_Open(void) {
-	printf("win_open\r\n");
     HAL_GPIO_WritePin(WINDOW_DIR_GPIO_Port, WINDOW_DIR_Pin, GPIO_PIN_RESET);//0 ->
     HAL_GPIO_WritePin(WINDOW_ACTION_GPIO_Port, WINDOW_ACTION_Pin, GPIO_PIN_RESET);
     win_dir = 0;
@@ -1073,59 +1046,60 @@ void Handle_Periodic_Sensor_Task(void)
     LoRa_Send_SensorData(Val_Temp, Val_Humi, Val_Dust, rain_st, light_value, win_dir, blind_dir);
 
     // ==========================================================
-    // 5. 자동 제어 로직 (요청하신 우선순위 적용)
-    // 우선순위: 미세먼지(건강) > 온도(쾌적) > 습도
+    // 5. 자동 제어 로직
     // ==========================================================
 
-    if (auto_mode == 1)
-    {
-//    	if (win_moving == 0) {
+	if (auto_mode == 1)
+	{
 
-    		// (0) 비오면 닫기 (최우선) - rain_st 활용
-    		if (rain_st == 1) {
-                 printf("   => [Auto] Rain! Closing.\r\n");
-    			Window_Action_Close();
-    			win_moving = 1;
-            }
-            // (1) 미세먼지가 나쁘면 무조건 닫기
-            else if (Val_Dust > DUST_BAD_LEVEL) {
-                 printf("   => [Auto] Dust Bad! Closing.\r\n");
-            	Window_Action_Close();
-            	win_moving = 1;
-            }
-            // (2) 온도가 너무 낮으면 닫기 (추위)
-            else if (Val_Temp < TEMP_COLD_TO_CLOSE) {
-                printf("   => [Auto] Cold! Closing.\r\n");
-            	Window_Action_Close();
-            	win_moving = 1;
-            }
-            // (3) 온도가 너무 높으면 열기 (더위)
-            else if (Val_Temp > TEMP_HOT_TO_OPEN) {
-                printf("   => [Auto] Hot! Opening.\r\n");
-            	Window_Action_Open();
-            	win_moving = 1;
-            }
-            // (4) 온도/먼지가 괜찮으면 습도 체크
-            else {
-                if (Val_Humi > HUMI_TO_OPEN) {
-                    printf("   => [Auto] Humid! Opening.\r\n");
-                	Window_Action_Open();
-                	win_moving = 1;
-                } else if (Val_Humi < HUMI_TO_CLOSE) {
-                    printf("   => [Auto] Dry! Closing.\r\n");
-                	Window_Action_Close();
-                	win_moving = 1;
-                }
-            }
-    		if (light_value > LIGHT_BRIGHT_TH) {
-    			printf("   => [Auto] Blind up.\r\n");
-    			Blind_Action_Up();
-    		}
-    		else if (light_value < LIGHT_DARK_TH) {
-    			printf("   => [Auto] Blind down.\r\n");
-    			Blind_Action_Down();
-    		}
-    }
+		// 비
+	    if (rain_st == 1)
+	    {
+	        printf("Rain detected! Close.\r\n");
+	        Window_Action_Close();
+	    }
+
+	    // 미세먼지
+	    else if (Val_Dust > DUST_BAD_LEVEL)
+	    {
+	        printf("Bad Dust! Open.\r\n");
+	        Window_Action_Open();
+	    }
+
+	    // 습도
+	    else if (Val_Humi > HUMI_TO_OPEN)
+	    {
+	        printf("Humid! Open.\r\n");
+	        Window_Action_Open();
+	    }
+	    else if (Val_Humi < HUMI_TO_CLOSE)
+	    {
+	        printf("Dry! Close.\r\n");
+	        Window_Action_Close();
+	    }
+
+	    // 온도
+	    else if (Val_Temp > TEMP_HOT_TO_OPEN)
+	    {
+	        printf("Hot! Open.\r\n");
+	        Window_Action_Open();
+	    }
+	    else if (Val_Temp < TEMP_COLD_TO_CLOSE)
+	    {
+	        printf("Cold! Close.\r\n");
+	        Window_Action_Close();
+	    }
+
+		// 블라인드
+		if (light_value > LIGHT_BRIGHT_TH) {
+			printf("   => Too Bright! Blind down.\r\n");
+			Blind_Action_Down();
+		}
+		else if (light_value < LIGHT_DARK_TH) {
+			printf("   => Too Dark! Blind up.\r\n");
+			Blind_Action_Up();
+		}
+	}
 }
 
 // --- 인터럽트 콜백 ---
@@ -1134,11 +1108,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == RADIO_DIO_0_Pin && DIO0_IrqHandler != NULL) {
     	DIO0_IrqHandler(DIO0_Context);
-//    	SX1272OnDio0Irq(); // 전송/수신 완료 신호 처리
     }
     else if (GPIO_Pin == RADIO_DIO_1_Pin && DIO1_IrqHandler != NULL) {
     	DIO1_IrqHandler(DIO1_Context);
-//    	SX1272OnDio1Irq(); // 타임아웃 신호 처리
     }
 }
 
