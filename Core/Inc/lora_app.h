@@ -19,7 +19,7 @@
 #define LORA_SYMBOL_TIMEOUT                         0         // Symbols
 #define LORA_FIX_LENGTH_PAYLOAD_ON                  false
 #define LORA_IQ_INVERSION_ON                        false
-#define RX_TIMEOUT_VALUE                            1000
+#define RX_TIMEOUT_VALUE                            3000
 #define BUFFER_SIZE                                 64		// Define the payload size here
 
 #define Rx_ID			77		// 공유 아이디
@@ -28,6 +28,6 @@
 // 메인에서 갖다 쓸 함수들
 void LoRa_Init_User(void);        // LoRa 초기화
 void LoRa_Process_Task(void);     // LoRa 상태머신 (Loop 안에서 계속 돌릴 것)
-void LoRa_Send_SensorData(int t_int, int t_dec, int h_int, int h_dec, int d_int, int d_dec, int rain, int light);
+void LoRa_Send_SensorData(int t_int, int h_int, int d_int, int rain, int light, int w, int b);
 
 #endif

@@ -25,7 +25,9 @@ static LoRaState_t State = LORA_IDLE;
 // 외부 모터 함수 연결
 extern void Window_Action_Open(void);
 extern void Window_Action_Close(void);
-extern void Window_Action_Stop(void);
+extern void Blind_Action_Up(void);
+extern void Blind_Action_Down(void);
+extern int auto_mode;
 
 // --- [콜백 함수들] ---
 void OnTxDone(void) {
@@ -38,21 +40,38 @@ void OnTxDone(void) {
 
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
     Radio.Sleep();
-    char rxCmd[32];
+    char rxCmd[64];
     memset(rxCmd, 0, sizeof(rxCmd));
+    if(payload[0] == Rx_ID) {
+		if (size > 1)
+		{
+			memcpy(rxCmd, payload + 1, size - 1); // ID 떼고 복사
+		}
 
-    if (size > 1) memcpy(rxCmd, payload + 1, size - 1); // ID 떼고 복사
+		printf("> [LoRa] RX Cmd: %s\r\n", rxCmd);
 
-    printf("> [LoRa] RX Cmd: %s\r\n", rxCmd);
-
-    // AI+WEB버튼클릭
-    /*
-    if (strncmp(rxCmd, "OPEN", 4) == 0)      Window_Action_Open();
-    else if (strncmp(rxCmd, "CLOS", 4) == 0) Window_Action_Close();
-    else if (strncmp(rxCmd, "STOP", 4) == 0) Window_Action_Stop();
-    */
-
-    State = LORA_IDLE; // 다시 대기 상태로
+		if (strncmp(rxCmd, "OPEN", 4) == 0)
+		{
+			auto_mode = 0;
+			Window_Action_Open();
+		}
+		else if(strncmp(rxCmd, "CLOSE", 5) == 0)
+		{
+			auto_mode = 0;
+			Window_Action_Close();
+		}
+		else if(strncmp(rxCmd, "UP", 2) == 0)
+		{
+			auto_mode = 0;
+			Blind_Action_Up();
+		}
+		else if(strncmp(rxCmd, "DOWN", 4) == 0)
+		{
+			auto_mode = 0;
+			Blind_Action_Down();
+		}
+		State = LORA_IDLE; // 다시 대기 상태로
+    }
 }
 
 void OnTxTimeout(void) { Radio.Sleep(); State = LORA_IDLE; }
@@ -89,20 +108,23 @@ void LoRa_Init_User(void) {
 }
 
 // 2. 데이터 전송 요청 함수 (인자 7개 처리)
-void LoRa_Send_SensorData(int t_int, int t_dec, int h_int, int h_dec, int d_int, int d_dec, int rain, int light) {
+void LoRa_Send_SensorData(int t_int, int h_int, int d_int, int rain, int light, int w, int b) {
     // 보낼 데이터가 있을 때만 TX 상태로 전환
     if(State == LORA_IDLE) {
 
-        sprintf((char*)Buffer + 1, "T:%d H:%d D:%d R:%d L:%d",
+        memset((void *)(Buffer + 1), 0, BUFFER_SIZE -1);
+        sprintf((char*)Buffer + 1, "T:%d H:%d D:%d R:%d L:%d WDIR:%d BDIR:%d",
                 t_int,
                 h_int,
                 d_int,
                 rain,
-				light);
+				light,
+				w,
+				b);
 
         printf("> [LoRa] Sending: %s\r\n", (char*)(Buffer+1));
     	printf("ID : %d\n", Buffer[0]);
-        Radio.Send(Buffer, BUFFER_SIZE);
+    	Radio.Send(Buffer, BUFFER_SIZE);
         State = LORA_TX;
     }
     else {

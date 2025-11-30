@@ -61,7 +61,7 @@
 #define LIGHT_BRIGHT_TH 3000
 #define LIGHT_DARK_TH   1000
 
-#define SENSOR_CHECK_INTERVAL 5000
+#define SENSOR_CHECK_INTERVAL 3000
 #define MAX_OPEN_TIME 5000
 /* USER CODE END PD */
 
@@ -85,10 +85,12 @@ TIM_HandleTypeDef htim6;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+int auto_mode = 0;
 
 int win_moving = 0;
 int blind_moving = 0;
-int auto_mode = 1;
+int win_dir = 1;
+int blind_dir = 0;
 
 volatile uint8_t g_rain_flag = 0;
 
@@ -244,7 +246,7 @@ int main(void)
             case 0x0C: //1
             	if(auto_mode == 1)
             	{
-            		printf("   (Ignored: Currently Auto Mode)\n");
+            		printf("Ignored: Currently Auto Mode\n");
             		break;
             	}
             	Window_Action_Open();
@@ -254,7 +256,7 @@ int main(void)
             case 0x18: //2
             	if(auto_mode == 1)
             	{
-            		printf("   (Ignored: Currently Auto Mode)\n");
+            		printf("Ignored: Currently Auto Mode\n");
             		break;
             	}
             	Window_Action_Stop();
@@ -264,7 +266,7 @@ int main(void)
             case 0x5E: //3
             	if(auto_mode == 1)
             	{
-            		printf("   (Ignored: Currently Auto Mode)\n");
+            		printf("Ignored: Currently Auto Mode\n");
             		break;
             	}
             	Window_Action_Close();
@@ -274,7 +276,7 @@ int main(void)
             case 0x08: //4
             	if(auto_mode == 1)
             	{
-            		printf("   (Ignored: Currently Auto Mode)\n");
+            		printf("Ignored: Currently Auto Mode\n");
             		break;
             	}
             	Blind_Action_Up();
@@ -284,7 +286,7 @@ int main(void)
             case 0x1C: //5
             	if(auto_mode == 1)
             	{
-            		printf("   (Ignored: Currently Auto Mode)\n");
+            		printf("Ignored: Currently Auto Mode\n");
             		break;
             	}
             	Blind_Action_Stop();
@@ -294,7 +296,7 @@ int main(void)
             case 0x5A: //6
             	if(auto_mode == 1)
             	{
-            		printf("   (Ignored: Currently Auto Mode)\n");
+            		printf("Ignored: Currently Auto Mode\n");
             		break;
             	}
             	Blind_Action_Down();
@@ -305,7 +307,7 @@ int main(void)
             	auto_mode = 0;
             	printf(">> Auto Mode OFF\n");
             	break;
-            case 0x52:
+            case 0x52: //8
             	auto_mode = 1;
             	printf(">> Auto Mode ON\n");
             	break;
@@ -780,13 +782,13 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(RADIO_RESET_GPIO_Port, RADIO_RESET_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, WINDOW_ACTION_Pin|BLIND_DIR_Pin|BLIND_ACTION_Pin|WINDOW_DIR_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, WINDOW_ACTION_Pin|BLIND_ACTION_Pin|WINDOW_DIR_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, BLIND_DIR_Pin|RADIO_NSS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_1_GPIO_Port, LED_1_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(RADIO_NSS_GPIO_Port, RADIO_NSS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -858,16 +860,16 @@ static void MX_GPIO_Init(void)
 
 // --- 모터 제어 함수 ---
 void Window_Action_Open(void) {
-
-    HAL_GPIO_WritePin(WINDOW_DIR_GPIO_Port, WINDOW_DIR_Pin, GPIO_PIN_RESET); //0 ->
-    HAL_Delay(50);
-    HAL_GPIO_WritePin(WINDOW_ACTION_GPIO_Port, WINDOW_ACTION_Pin, GPIO_PIN_RESET); //0 동작
+	printf("win_open\r\n");
+    HAL_GPIO_WritePin(WINDOW_DIR_GPIO_Port, WINDOW_DIR_Pin, GPIO_PIN_RESET);//0 ->
+    HAL_GPIO_WritePin(WINDOW_ACTION_GPIO_Port, WINDOW_ACTION_Pin, GPIO_PIN_RESET);
+    win_dir = 0;
 }
 void Window_Action_Close(void) {
 
     HAL_GPIO_WritePin(WINDOW_DIR_GPIO_Port, WINDOW_DIR_Pin, GPIO_PIN_SET); //1 <-
-    HAL_Delay(50);
     HAL_GPIO_WritePin(WINDOW_ACTION_GPIO_Port, WINDOW_ACTION_Pin, GPIO_PIN_RESET); // 0 동작
+    win_dir = 1;
 }
 void Window_Action_Stop(void) {
 
@@ -877,15 +879,15 @@ void Window_Action_Stop(void) {
 void Blind_Action_Up(void) {
 
 	HAL_GPIO_WritePin(BLIND_DIR_GPIO_Port, BLIND_DIR_Pin, GPIO_PIN_RESET);
-	HAL_Delay(50);
 	HAL_GPIO_WritePin(BLIND_ACTION_GPIO_Port, BLIND_ACTION_Pin, GPIO_PIN_RESET);
+	blind_dir = 0;
 }
 
 void Blind_Action_Down(void) {
 
 	HAL_GPIO_WritePin(BLIND_DIR_GPIO_Port, BLIND_DIR_Pin, GPIO_PIN_SET);
-	HAL_Delay(50);
 	HAL_GPIO_WritePin(BLIND_ACTION_GPIO_Port, BLIND_ACTION_Pin, GPIO_PIN_RESET);
+	blind_dir = 1;
 }
 
 void Blind_Action_Stop(void) {
@@ -1058,9 +1060,6 @@ void Handle_Periodic_Sensor_Task(void)
     if (HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK) light_value = HAL_ADC_GetValue(&hadc1);
     HAL_ADC_Stop(&hadc1);
 
-    // 확인용 출력
-    printf("Digital Light Sensor: %d\r\n", light_value);
-
 
     // 3. 통합 데이터 출력 (정수만 출력)
     printf("  >> T:%d, H:%d | Dust: %d ug/m3 Light: %d \r\n", Val_Temp, Val_Humi, Val_Dust, light_value);
@@ -1071,7 +1070,7 @@ void Handle_Periodic_Sensor_Task(void)
 
     // [Temp, 0, Humi, 0, Dust, 0, Rain] 순서
 
-    LoRa_Send_SensorData(Val_Temp, 0, Val_Humi, 0, Val_Dust, 0, rain_st, light_value);
+    LoRa_Send_SensorData(Val_Temp, Val_Humi, Val_Dust, rain_st, light_value, win_dir, blind_dir);
 
     // ==========================================================
     // 5. 자동 제어 로직 (요청하신 우선순위 적용)
@@ -1118,15 +1117,14 @@ void Handle_Periodic_Sensor_Task(void)
                 	win_moving = 1;
                 }
             }
-        //}
-    	if(blind_moving == 0){
     		if (light_value > LIGHT_BRIGHT_TH) {
-    			Blind_Action_Down();
-    		}
-    		else if (light_value < LIGHT_DARK_TH) {
+    			printf("   => [Auto] Blind up.\r\n");
     			Blind_Action_Up();
     		}
-    	}
+    		else if (light_value < LIGHT_DARK_TH) {
+    			printf("   => [Auto] Blind down.\r\n");
+    			Blind_Action_Down();
+    		}
     }
 }
 
